@@ -1,0 +1,54 @@
+Function RangePunctuationRemoval(MultipleCells As Range) As Range
+
+    Dim CurrentCell As Range
+    Dim TempString As String: TempString = ""
+    For Each CurrentCell In MultipleCells
+        Dim j As Long
+        For j = 1 To Len(CurrentCell.value)
+            Dim SingleChar As String
+            SingleChar = LCase(Mid(CurrentCell.value, j, 1))
+            If SingleChar Like "[a-z0-9]" Then
+                If Not SingleChar = "–" Then
+                    TempString = TempString & Mid(CurrentCell.value, j, 1)
+                End If
+            End If
+        Next j
+        
+        If TempString = "" Or IsNumeric(TempString) = True Then
+            CurrentCell.Offset(0, 1).value = "Blank Space"
+        Else
+            CurrentCell.Offset(0, 1).value = TempString
+        End If
+        
+        TempString = ""
+    Next CurrentCell
+    
+End Function
+
+Function QueryPunctuationRemoval(Qterm As String) As String
+
+    Dim TempString As String: TempString = ""
+    If Len(Qterm) > 0 Then
+        Dim j As Long
+        For j = 1 To Len(Qterm)
+            Dim SingleChar As String
+            SingleChar = LCase(Mid(Qterm, j, 1))
+            If SingleChar Like "[a-z0-9]" Then
+                If Not SingleChar = "–" Then
+                    TempString = TempString & Mid(Qterm, j, 1)
+                End If
+            End If
+        Next j
+        
+        If TempString = "" Or IsNumeric(TempString) = True Then
+            Qterm = "Blank Space"
+        Else
+            Qterm = TempString
+        End If
+        
+        TempString = ""
+    End If
+    
+End Function
+
+
