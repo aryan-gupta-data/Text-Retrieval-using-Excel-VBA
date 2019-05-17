@@ -1,0 +1,244 @@
+'using public variable so as to use them in NewSearch code
+Public Dict As Dictionary
+Public MainIDfArray As Variant
+Public MainLastRow As Integer
+
+Sub Search(Row As Integer, LastRow As Integer, FileCount As Integer)
+    
+    Sheets(1).Select
+    
+    Dim rng As Range
+    Set rng = Range(Cells(2, 1).Offset(0, 4), Cells(Row, 1).Offset(0, 4))
+    
+    Range("J1").value = "Unique Words"
+    Range("K1").value = "Df"
+    Range("L1").value = "M/Df"
+    Range("M1").value = "Log(M/Df)"
+    
+    'Finding the Df, M/Df and log(M/df) where M = Number of Files, Df = Document Frequency
+    
+    Dim FirstString As Variant, SecondString As Variant
+    Dim k As Integer: k = 0
+    Dim m As FileWords
+    Dim DictIndexValue As Integer: DictIndexValue = 0
+    
+    Set Dict = New Dictionary
+    
+    For Each CurrentCell In rng
+        FirstString = CurrentCell.value
+        SecondString = CurrentCell.Offset(k, 0).value
+        Set m = New FileWords
+        m.UniqueWord = CurrentCell.value
+            If FirstString = SecondString Then
+            'if the current word is same as last word then proceed
+                If Not Dict.Exists(m.UniqueWord) Then
+                'if the word does not exist then it means its a unique word. Thus make its Df = 1 and add it to the dictionary.
+                    m.df = 1
+                    m.indexvalue = DictIndexValue
+                    Dict.Add m.UniqueWord, m
+                    'MainObj.MainDict.Add m.UniqueWord, m
+                    DictIndexValue = DictIndexValue + 1
+                Else
+                'if the word exists...then just increment the Df by 1
+                    Dict.Item(m.UniqueWord).df = Dict.Item(m.UniqueWord).df + 1
+                    'MainObj.MainDict.Item(m.UniqueWord).df = MainObj.MainDict.Item(m.UniqueWord).df + 1
+                End If
+            Else
+            'the current word is not equal to the last word......
+                If Not Dict.Exists(m.UniqueWord) Then
+                    m.df = 1
+                    m.indexvalue = DictIndexValue
+                    Dict.Add m.UniqueWord, m
+                    'MainObj.MainDict.Add m.UniqueWord, m
+                    DictIndexValue = DictIndexValue + 1
+                Else
+                    Dict.Item(m.UniqueWord).df = Dict.Item(m.UniqueWord).df + 1
+                End If
+            End If
+            k = -1
+    Next CurrentCell
+    
+    MainLastRow = LastRow 'Initializing value of Public Variable
+    
+    Dim idfarr() As Variant
+    ReDim idfarr(0)
+    For k = 0 To Dict.Count - 1
+        ReDim Preserve idfarr(0 To k)
+        Cells(2, 1).Offset(k, 9).value = Dict.Items(k).UniqueWord
+        
+        'printing value of Df
+        Cells(2, 1).Offset(k, 10).value = Dict.Items(k).df
+        
+        'printing value of M/Df where M => # of files => FileCount
+        Cells(2, 1).Offset(k, 11).value = Dict.Items(k).df / FileCount
+        
+        'getting and printing value of log(M/Df) base 10
+        Cells(2, 1).Offset(k, 12).value = Log(Cells(2, 1).Offset(k, 11).value) / Log(10)
+        
+        'filling the idf array
+        idfarr(k) = Cells(2, 1).Offset(k, 12).value
+    Next k
+    
+    MainIDfArray = idfarr() 'Initializing value of Public Variable
+    
+    'asking the user for the query term
+    Dim Qterm As String
+    Qterm = InputBox("Please Enter the Query Term", "Query Term")
+    
+    'if the user does not enter any value for qterm...then exit sub
+    If Qterm = "" Then
+        Exit Sub
+    End If
+    
+    'initialising qterm array
+    Dim QTermArr() As String
+    QTermArr = Split(Qterm)
+    Dim TempQTermArr() As String
+    TempQTermArr = Split(Qterm)
+    i = 0
+    
+    Dim QTermInfo As Dictionary
+    Set QTermInfo = New Dictionary
+    
+    'Dim terms As filewords
+    Dim value As Variant
+    Dim QTermIndex As Integer
+    Dim QtermExist As Boolean: QtermExist = False
+    Dim qtermIdf As Variant
+        
+    For i = LBound(QTermArr) To UBound(QTermArr)
+        
+        'checking the spelling of each query term
+        Call SpellingSuggestion(QTermArr(i))
+        
+        'cleaning the query term
+        Call QueryPunctuationRemoval(QTermArr(i))
+        Call porterAlgorithm(QTermArr(i))
+        
+        'checking whether the query term is present in the dictionary and retrieving its Index Value
+        
+        For k = 0 To Dict.Count - 1
+            value = Dict.Items(k).UniqueWord
+            If value = QTermArr(i) Then
+                QTermIndex = Dict.Item(value).indexvalue
+                QtermExist = True
+                Exit For
+            End If
+            QtermExist = False
+        Next k
+        
+        'collecting the query term's idf from idf array using the query term's index value
+        'if the qtermExists = True then it means that the qterm exists in the dictionary....
+        If QtermExist = True Then
+            Set m = New FileWords
+            
+            qtermIdf = idfarr(QTermIndex)
+            m.indexvalue = QTermIndex
+            m.df = Cells(QTermIndex + 2, 10).Offset(0, 1).value
+            m.idf = qtermIdf
+            m.UniqueWord = QTermArr(i)
+            QTermInfo.Add QTermArr(i), m
+            
+            Set m = Nothing
+            
+        Else:
+            MsgBox "The Query term : " & QTermArr(i) & " is not present in the dictionary..."
+            QTermArr(i) = " "
+        End If
+        
+    Next i
+    
+    Call DictBubbleSort(QTermInfo, QTermArr)
+    Call Accumulator(LastRow, QTermInfo, QTermArr, TempQTermArr)
+    
+    
+End Sub
+
+Sub NewSearch()
+    Sheets(1).Select
+       
+    'asking the user for the query term
+    Dim Qterm As String
+    Qterm = InputBox("Please Enter the Query Term", "Query Term")
+    
+    'if the user does not enter any value for qterm...then exit sub
+    If Qterm = "" Then
+        Exit Sub
+    End If
+    
+    'initialising qterm array
+    Dim QTermArr() As String
+    QTermArr = Split(Qterm)
+    Dim TempQTermArr() As String
+    TempQTermArr = Split(Qterm)
+    i = 0
+    
+    Dim QTermInfo As Dictionary
+    Set QTermInfo = New Dictionary
+    
+    'Dim terms As filewords
+    Dim value As Variant
+    Dim QTermIndex As Integer
+    Dim QtermExist As Boolean: QtermExist = False
+    Dim qtermIdf As Variant
+        
+    For i = LBound(QTermArr) To UBound(QTermArr)
+        
+        'checking the spelling of each query term
+        Call SpellingSuggestion(QTermArr(i))
+        
+        'cleaning the query term
+        Call QueryPunctuationRemoval(QTermArr(i))
+        Call porterAlgorithm(QTermArr(i))
+        
+        'checking whether the query term is present in the dictionary and retrieving its Index Value
+        
+        For k = 0 To Dict.Count - 1
+            value = Dict.Items(k).UniqueWord
+            If value = QTermArr(i) Then
+                QTermIndex = Dict.Item(value).indexvalue
+                QtermExist = True
+                Exit For
+            End If
+            QtermExist = False
+        Next k
+        
+        'collecting the query term's idf from idf array using the query term's index value
+        'if the qtermExists = True then it means that the qterm exists in the dictionary....
+        If QtermExist = True Then
+            Set m = New FileWords
+            
+            qtermIdf = MainIDfArray(QTermIndex)
+            m.indexvalue = QTermIndex
+            m.df = Cells(QTermIndex + 2, 10).Offset(0, 1).value
+            m.idf = qtermIdf
+            m.UniqueWord = QTermArr(i)
+            QTermInfo.Add QTermArr(i), m
+            
+            Set m = Nothing
+            
+        Else:
+            MsgBox "The Query term : " & QTermArr(i) & " is not present in the dictionary..."
+            QTermArr(i) = " "
+        End If
+        
+    Next i
+    
+    Call DictBubbleSort(QTermInfo, QTermArr)
+    Call Accumulator(MainLastRow, QTermInfo, QTermArr, TempQTermArr)
+    
+    
+End Sub
+
+Sub EndSearch()
+
+    'asking the user whether to delete the sheet
+    Dim DeleteWorksheet As Variant
+    DeleteWorksheet = MsgBox("Do you want to delete the Accumulator Sheet ?", vbYesNo)
+    If DeleteWorksheet = vbYes Then
+        Application.DisplayAlerts = False
+        ActiveSheet.Delete
+        Application.DisplayAlerts = True
+    End If
+
+End Sub
