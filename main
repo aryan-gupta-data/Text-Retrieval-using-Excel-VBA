@@ -1,0 +1,105 @@
+Option Explicit
+
+Sub main()
+
+    Sheets(1).Select 'Selects the First Sheet where the Postings and Dictionary is
+    
+    Dim collection As FileDialog
+    Set collection = Application.FileDialog(msoFileDialogFolderPicker)
+    collection.InitialFileName = Environ("UserProfile") & "\Desktop"
+    'Opening the default path to select a folder..in this code the default path starts from your desktop.
+    
+    'if the folder is not selected by the user...a message box showing "You did not choose a folder" is shown.
+    Dim FolderWasChosen As Boolean
+    FolderWasChosen = collection.Show
+    If Not FolderWasChosen Then
+        MsgBox "You did not choose a folder"
+        Exit Sub
+    End If
+    
+    'Looping through the files of the folder to get all the words in all the files.
+    'prints all the words in one row and their respective file name.
+    Dim directory As String
+    directory = collection.SelectedItems(1)
+    
+    Dim File, FileLocation As String
+    Dim RowNumber, FileCount As Integer
+    Dim Data As Variant
+    Dim words() As String
+    
+    Range("A1").value = "Words"
+    Range("D1").value = "File Name"
+    
+    File = Dir(directory & "\" & "*.txt")
+    RowNumber = 2
+    FileCount = 0
+    Do While File <> ""
+        FileLocation = directory & "\" & File
+            Open FileLocation For Input As #1
+            
+                Do Until EOF(1)
+                        Line Input #1, Data
+                        words = Split(Data)
+                        Dim i As Integer
+                        For i = 0 To UBound(words())
+                            Cells(RowNumber, 1) = words(i)
+                            Cells(RowNumber, 1).Offset(0, 3).value = File
+                            RowNumber = RowNumber + 1
+                        Next i
+                Loop
+            Close #1
+        FileCount = FileCount + 1
+        File = Dir()
+    Loop
+    
+    Dim LastRow As Integer
+    LastRow = RowNumber - 1
+    
+'********************************************************************
+   'removing PUNCTUATIONS
+    Range("B1").value = "Punctuation Removed"
+    
+    Dim FileNames() As String
+    Dim rng As Range
+    Set rng = Range(Cells(2, 1), Cells(LastRow, 1))
+    Call RangePunctuationRemoval(rng)
+    
+'********************************************************************
+    'Stemming the WORDS using Porter Algorithm
+    Set rng = Range(Cells(2, 1).Offset(0, 1), Cells(LastRow, 1).Offset(0, 1))
+    
+    Range("C1").value = "Root Words"
+    
+    Dim word As String
+    Dim CurrentCell As Range
+    
+    For Each CurrentCell In rng
+        word = CurrentCell.value
+        Call porterAlgorithm(word)
+            If IsNumeric(word) = False And IsEmpty(word) = False Then
+                CurrentCell.Offset(0, 1).value = LCase(word)
+            End If
+    Next CurrentCell
+'*********************************************************************
+    Dim Row As Integer: Row = 0
+    Dim PostingsWords() As String
+    Dim PostingsFileName() As String
+    Dim PostingsTf() As Variant
+    Dim PostingsNormalisedTf() As Variant
+    
+    Set rng = Range(Cells(2, 1).Offset(0, 2), Cells(LastRow, 1).Offset(0, 2))
+    
+    Range("E1").value = "Sorted Words"
+    Range("F1").value = "File Name"
+    Range("G1").value = "Tf"
+    Range("H1").value = "Normalized Tf"
+    
+    Call FillingDictionary(rng, Row, FileCount, PostingsWords(), PostingsFileName(), PostingsTf(), PostingsNormalisedTf())
+'*********************************************************************
+   
+    Call Search(Row, LastRow, FileCount)
+    
+End Sub
+
+
+
