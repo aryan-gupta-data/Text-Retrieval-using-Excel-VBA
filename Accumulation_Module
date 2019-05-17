@@ -1,0 +1,116 @@
+
+Function Accumulator(LastRow As Integer, QTermInfo As Dictionary, QTermArr() As String, TempQTermArr() As String)
+    
+    Dim i As Integer
+    Dim rng As Range, SearchRange As Range
+    Dim CurrentCell As Range
+    Dim DocFreq As Integer
+    Dim ID As Integer
+    Dim InverseDf As Variant
+    
+    Dim AccDict As Dictionary
+    Set AccDict = New Dictionary
+    
+    Dim Qterm As FileWords
+    
+    For i = LBound(QTermArr) To UBound(QTermArr)
+        If Not QTermArr(i) = " " Then
+            DocFreq = QTermInfo.Item(QTermArr(i)).df
+            InverseDf = QTermInfo.Item(QTermArr(i)).idf
+            Set SearchRange = Range(Cells(2, 5), Cells(LastRow, 5))
+            Dim CurrentCellID As Integer: CurrentCellID = 0
+            
+            For Each CurrentCell In SearchRange
+                CurrentCellID = CurrentCellID + 1
+                If CurrentCell.value = QTermArr(i) Then
+                    Set rng = Range(Cells(CurrentCellID + 1, 5), Cells(CurrentCellID + DocFreq, 5))
+                    Exit For
+                End If
+            Next CurrentCell
+            
+            For Each CurrentCell In rng
+                Set Qterm = New FileWords
+                Qterm.FileName = CurrentCell.Offset(0, 1).value
+                If Not AccDict.Exists(Qterm.FileName) Then
+                    Qterm.FileName = CurrentCell.Offset(0, 1).value
+                    Qterm.tf = CurrentCell.Offset(0, 2).value
+                    Qterm.weight = Qterm.tf * InverseDf
+                    AccDict.Add Qterm.FileName, Qterm
+                    Set Qterm = Nothing
+                Else
+                    AccDict.Item(Qterm.FileName).weight = AccDict.Item(Qterm.FileName).weight + CurrentCell.Offset(0, 2).value * InverseDf
+                End If
+            Next CurrentCell
+        End If
+    Next i
+    
+    Worksheets.Add after:=Sheets(Sheets.Count)
+    Sheets(Sheets.Count).Select
+    
+    'naming the sheets as per new searches done
+    Dim SearchSheetNumber As Integer
+    If Sheets.Count = 2 Then
+        ActiveSheet.Name = "Search 1"
+    Else
+        ActiveSheet.Name = "Search" & " " & Sheets.Count - 1
+    End If
+    
+    Dim k As Integer
+    Dim Query As String
+    Dim QtermExist As Boolean: QtermExist = False
+    
+    For k = LBound(TempQTermArr) To UBound(TempQTermArr)
+        Query = Query & " " & TempQTermArr(k)
+    Next k
+        
+    Range("A1") = Query
+    
+    'if the full Query Term is not present in the dictionary
+    If Range("A1") = "" Then
+        Application.DisplayAlerts = False
+        ActiveSheet.Delete
+        Application.DisplayAlerts = True
+    End If
+    
+    'Bubble Sorting for the Accumulator
+    Dim j As Integer
+    Dim First As Integer: First = 0
+    Dim Last As Integer
+    Dim temp As Variant
+    Last = AccDict.Count - 1
+    
+    
+    For i = First To Last - 1
+         For j = i + 1 To Last
+            'sorting the QTerms in QTermArr by decreasing values to idf
+            If (AccDict.Items(i).weight) > (AccDict.Items(j).weight) Then
+                temp = AccDict.Items(j).weight
+                AccDict.Items(j).weight = AccDict.Items(i).weight
+                AccDict.Items(i).weight = temp
+                
+                temp = AccDict.Items(j).FileName
+                AccDict.Items(j).FileName = AccDict.Items(i).FileName
+                AccDict.Items(i).FileName = temp
+                
+            End If
+        Next j
+    Next i
+    
+    For i = 0 To AccDict.Count - 1
+        Cells(i + 1, 2) = AccDict.Items(i).FileName
+        Cells(i + 1, 3) = AccDict.Items(i).weight
+    Next i
+    
+    'adding a New Search Button
+    ActiveSheet.Buttons.Add(528, 30.75, 192, 73.5).Select
+    Selection.Characters.Text = "New Search"
+    Selection.OnAction = "NewSearch"
+    
+    'Adding a End Search Button
+    ActiveSheet.Buttons.Add(816, 30, 191.25, 75).Select
+    Selection.Characters.Text = "Exit"
+    Selection.OnAction = "EndSearch"
+    
+    Range("A1").Select
+    
+End Function
