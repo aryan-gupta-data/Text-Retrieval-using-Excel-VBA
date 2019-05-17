@@ -1,0 +1,26 @@
+Option Explicit
+Function SpellingSuggestion(Qterm As String) As String
+    Call SpellCheck(Qterm)
+    If SpellCheck(Qterm) = False Then
+        Application.DisplayAlerts = False
+        
+        Worksheets.Add after:=Sheets(Sheets.Count)
+        Sheets(Sheets.Count).Select
+        
+        Range("A1") = Qterm
+        Range("A1").CheckSpelling AlwaysSuggest:=True
+        Qterm = Range("A1")
+        
+        Sheets(Sheets.Count).Delete
+        
+        Application.DisplayAlerts = True
+    End If
+
+End Function
+
+Function SpellCheck(QueryTerm As String) As Boolean
+    
+    SpellCheck = Application.CheckSpelling(QueryTerm)
+    
+End Function
+
