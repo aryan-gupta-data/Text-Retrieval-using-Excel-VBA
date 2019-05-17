@@ -1,0 +1,251 @@
+Function FillingDictionary(MultipleCells As Range, PostingsRowCnt As Integer, FileCount As Integer, SortedWordsArr() As String, FileNameArr() As String, TfArr() As Variant, NormalisedTfArray() As Variant)
+
+    Application.ScreenUpdating = False
+    
+    'Making the postings which include word, filename and tf
+    Dim FirstFile As String, secondfile As String
+    
+    Dim Postings As Dictionary
+    Set Postings = New Dictionary
+    
+    Dim index As Variant: index = 0
+    Dim CurrentCell As Range
+    Dim m As FileWords
+    Dim k As Variant: k = 0
+    Dim PostingRow As Variant: PostingRow = 0
+    Dim UniquePostings As Variant
+    Dim LastRow As Variant: LastRow = 0
+    Dim TotalTf As Variant: TotalTf = 0
+    Dim PrevTf As Variant
+    Dim DictElementNumber As Variant: DictElementNumber = 0
+    Dim Start As Variant: Start = 0
+    Dim CurrentFileNumber As Variant: CurrentFileNumber = 1
+    
+    For Each CurrentCell In MultipleCells
+        
+        If Not CurrentFileNumber = FileCount And Not CurrentCell = "blank spac" Then
+                
+                FirstFile = CurrentCell.Offset(0, 1).value
+                secondfile = CurrentCell.Offset(k, 1).value
+                    
+                    If FirstFile = secondfile Then
+                        Set m = New FileWords
+                        m.UniqueWord = CurrentCell
+                            
+                            If Not Postings.Exists(m.UniqueWord) Then
+                                m.tf = 1
+                                m.indexvalue = PostingRow
+                                m.FileName = CurrentCell.Offset(0, 1).value
+                                Postings.Add m.UniqueWord, m
+                                
+                                TotalTf = TotalTf + (m.tf * m.tf) 'this will be used for normalised tf
+                                
+                                Cells(2, 5).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).UniqueWord
+                                Cells(2, 6).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).FileName
+                                Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+                                
+                                PostingRow = PostingRow + 1
+                                UniquePostings = PostingRow
+                                LastRow = LastRow + 1
+                                Set m = Nothing
+                                
+                            Else:
+                                'if the words are repeating...increment the tf by 1
+                                PrevTf = Postings.Item(m.UniqueWord).tf
+                                Postings.Item(m.UniqueWord).tf = Postings.Item(m.UniqueWord).tf + 1
+                                
+                                'subtract the last tf ->(PrevTf) of the existing word and add the new tf
+                                TotalTf = TotalTf + (Postings.Item(m.UniqueWord).tf * Postings.Item(m.UniqueWord).tf) - (PrevTf * PrevTf)
+                                
+                                PostingRow = Postings.Item(m.UniqueWord).indexvalue
+                                Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+                                PostingRow = UniquePostings
+                            End If
+                            
+                            'k = -1 since we want to check right cell and then above cell to see if we are still on the same file
+                            k = -1
+                            
+                           
+                    Else
+                        'If first file is not equal to second file
+                        'filenumber is incremented by 1
+                        CurrentFileNumber = CurrentFileNumber + 1
+                        
+                        'normalized tf of the last file is printed
+                        For DictElementNumber = 0 To Postings.Count - 1
+                            Cells(2, 8).Offset(Start, 0).value = Postings.Items(DictElementNumber).tf / Sqr(TotalTf)
+                            Start = Start + 1
+                        Next DictElementNumber
+                        
+                        'make TotalTf zero for the next file
+                        TotalTf = 0
+                        
+                        'create a new dictionary for every different file
+                        Set Postings = New Dictionary
+                        k = 0
+                        Set m = New FileWords
+                        m.UniqueWord = CurrentCell
+                            
+                            If Not Postings.Exists(m.UniqueWord) Then
+                                m.tf = 1
+                                m.indexvalue = PostingRow
+                                m.FileName = CurrentCell.Offset(0, 1).value
+                                Postings.Add m.UniqueWord, m
+                                
+                                Cells(2, 5).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).UniqueWord
+                                Cells(2, 6).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).FileName
+                                Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+                                
+                                PostingRow = PostingRow + 1
+                                UniquePostings = PostingRow
+                                LastRow = LastRow + 1
+                                Set m = Nothing
+                                
+                            Else:
+                                Postings.Item(m.UniqueWord).tf = Postings.Item(m.UniqueWord).tf + 1
+                                PostingRow = Postings.Item(m.UniqueWord).indexvalue
+                                Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+                                PostingRow = UniquePostings
+                            End If
+                    
+                    End If
+                If Not CurrentFileNumber = FileCount Then
+                    'k = -1 since we want to check right cell and then above cell to see if we are still on the same file
+                    k = -1
+                End If
+            Else
+                'if we are on the last file...then make a new dictionary for it and find the normalized tf
+                Set m = New FileWords
+                m.UniqueWord = CurrentCell
+                If Not Postings.Exists(m.UniqueWord) Then
+                    m.tf = 1
+                    m.indexvalue = PostingRow
+                    m.FileName = CurrentCell.Offset(0, 1).value
+                    Postings.Add m.UniqueWord, m
+             
+                    TotalTf = TotalTf + (m.tf * m.tf)
+              
+                    Cells(2, 5).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).UniqueWord
+                    Cells(2, 6).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).FileName
+                    Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+              
+                    PostingRow = PostingRow + 1
+                    UniquePostings = PostingRow
+                    LastRow = LastRow + 1
+                    Set m = Nothing
+               
+                Else:
+                    'if the word alredy exists...increment the tf by 1
+                    PrevTf = Postings.Item(m.UniqueWord).tf
+                    Postings.Item(m.UniqueWord).tf = Postings.Item(m.UniqueWord).tf + 1
+                    
+                    'subtract the last tf ->(PrevTf) of the existing word and add the new tf
+                    TotalTf = TotalTf + (Postings.Item(m.UniqueWord).tf * Postings.Item(m.UniqueWord).tf) - (PrevTf * PrevTf)
+                
+                    PostingRow = Postings.Item(m.UniqueWord).indexvalue
+                    Cells(2, 7).Offset(PostingRow, 0).value = Postings.Item(m.UniqueWord).tf
+                    PostingRow = UniquePostings
+                End If
+                
+        End If
+    
+    Next CurrentCell
+        
+        'Normalized Tf for the last file since the dictionary would be filled by the last file words
+        For DictElementNumber = 0 To Postings.Count - 1
+            Cells(2, 8).Offset(Start, 0).value = Postings.Items(DictElementNumber).tf / Sqr(TotalTf)
+            Start = Start + 1
+        Next DictElementNumber
+        
+    'filling the arrays with the values of words, filename, tf and normalised tf
+    ReDim SortedWordsArr(0)
+    ReDim FileNameArr(0)
+    ReDim TfArr(0)
+    ReDim NormalisedTfArray(0)
+    Dim ArrayIndex As Integer
+    
+    For ArrayIndex = 0 To LastRow - 1
+        
+        ReDim Preserve SortedWordsArr(0 To ArrayIndex)
+        ReDim Preserve FileNameArr(0 To ArrayIndex)
+        ReDim Preserve TfArr(0 To ArrayIndex)
+        ReDim Preserve NormalisedTfArray(0 To ArrayIndex)
+        
+        SortedWordsArr(ArrayIndex) = Cells(2, 5).Offset(ArrayIndex, 0).value
+        FileNameArr(ArrayIndex) = Cells(2, 6).Offset(ArrayIndex, 0).value
+        TfArr(ArrayIndex) = Cells(2, 7).Offset(ArrayIndex, 0).value
+        NormalisedTfArray(ArrayIndex) = Cells(2, 8).Offset(ArrayIndex, 0).value
+    Next ArrayIndex
+    
+    
+    'Bubble-Sorting
+    Dim First As Long, Last As Long
+    Dim i As Long, j As Long
+    Dim temp As Variant
+    First = 0
+    Last = LastRow
+    
+    For i = First To Last - 1
+        If Len(SortedWordsArr(i)) > 0 And IsNumeric(SortedWordsArr(i)) = False Then
+            For j = i + 1 To Last - 1
+                If Len(SortedWordsArr(j)) > 0 And IsNumeric(SortedWordsArr(j)) = False Then
+                    If UCase(SortedWordsArr(i)) > UCase(Cells(2, 5).Offset(j, 0).value) Then
+                        temp = SortedWordsArr(j)
+                        SortedWordsArr(j) = SortedWordsArr(i)
+                        SortedWordsArr(i) = temp
+   
+                        temp = FileNameArr(j)
+                        FileNameArr(j) = FileNameArr(i)
+                        FileNameArr(i) = temp
+    
+                        temp = TfArr(j)
+                        TfArr(j) = TfArr(i)
+                        TfArr(i) = temp
+                        
+                        temp = NormalisedTfArray(j)
+                        NormalisedTfArray(j) = NormalisedTfArray(i)
+                        NormalisedTfArray(i) = temp
+                        
+                  End If
+               End If
+           Next j
+       End If
+    Next i
+    
+    PostingsRowCnt = LastRow + 1
+    
+    'printing the sorted values from array to sheet
+    For ArrayIndex = 0 To LastRow - 1
+        Cells(2, 5).Offset(ArrayIndex, 0).value = SortedWordsArr(ArrayIndex)
+        Cells(2, 6).Offset(ArrayIndex, 0).value = FileNameArr(ArrayIndex)
+        Cells(2, 7).Offset(ArrayIndex, 0).value = TfArr(ArrayIndex)
+        Cells(2, 8).Offset(ArrayIndex, 0).value = NormalisedTfArray(ArrayIndex)
+    Next ArrayIndex
+    
+    Application.ScreenUpdating = True
+    
+End Function
+
+Function DictBubbleSort(Dict As Dictionary, Arr() As String)
+    
+    Dim j As Long
+    Dim First As Integer: First = 0
+    Dim Last As Integer
+    Dim temp As Variant
+    Last = Dict.Count - 1
+    
+    
+    For i = First To Last - 1
+         For j = i + 1 To Last
+            'sorting the QTerms in QTermArr by decreasing values to idf
+            If (Dict.Items(i).idf) < (Dict.Items(j).idf) Then
+                temp = Arr(j)
+                Arr(j) = Arr(i)
+                Arr(i) = temp
+                
+            End If
+        Next j
+    Next i
+    
+End Function
+
